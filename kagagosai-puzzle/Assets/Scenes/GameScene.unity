@@ -150,6 +150,10 @@ PrefabInstance:
       propertyPath: m_Color.r
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5251752821421231814, guid: 269515dc36e570242b5e4adc48bacc0b, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7435826690487496911, guid: 269515dc36e570242b5e4adc48bacc0b, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -410,7 +414,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b838bf92a72e2e141b26914682010285, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  timeLimit: 180
+  timeLimit: 30
   timeText: {fileID: 44812702}
   scoreText: {fileID: 2133959405}
   currentTargets:

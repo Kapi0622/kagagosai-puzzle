@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro; // TextMeshProを扱うために必要
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -21,6 +22,8 @@ public class GameManager : MonoBehaviour
     private float currentTime;
     private int score;
     private int placedPieces;
+    
+    public static int finalScore;
 
     void Awake()
     {
@@ -51,7 +54,10 @@ public class GameManager : MonoBehaviour
         else
         {
             currentTime = 0;
-            // ここに時間切れの処理を書く（ステップ5）
+            UpdateTimerUI(); // 時間を0に更新
+
+            finalScore = score; // スコアを記録
+            SceneManager.LoadScene("ResultScene"); 
         }
     }
     
@@ -104,4 +110,5 @@ public class GameManager : MonoBehaviour
     {
         scoreText.text = "スコア : " + score.ToString();
     }
+    
 }
