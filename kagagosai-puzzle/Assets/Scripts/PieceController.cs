@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 public class PieceController : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
 {
-    public string shapeType; // GameManagerによって設定されるピースの形
+    public string shapeType;
 
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
@@ -23,8 +23,8 @@ public class PieceController : MonoBehaviour, IPointerDownHandler, IDragHandler,
     {
         initialPosition = rectTransform.anchoredPosition;
         initialParent = transform.parent;
-        transform.SetParent(canvas.transform, true); // ドラッグ中、最前面に表示するため
-        
+        transform.SetParent(canvas.transform, true);
+
         canvasGroup.blocksRaycasts = false;
         canvasGroup.alpha = 0.8f;
     }
@@ -36,7 +36,7 @@ public class PieceController : MonoBehaviour, IPointerDownHandler, IDragHandler,
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        transform.SetParent(initialParent); // 親を元に戻す
+        transform.SetParent(initialParent);
         canvasGroup.blocksRaycasts = true;
         canvasGroup.alpha = 1.0f;
 
@@ -48,24 +48,25 @@ public class PieceController : MonoBehaviour, IPointerDownHandler, IDragHandler,
 
             if (target != null && target.shapeType == this.shapeType)
             {
-                // 形が一致した場合：正解！
+                // 正解！
                 rectTransform.position = target.transform.position;
-                this.enabled = false; // 自分を操作不能にする
-                target.gameObject.SetActive(false); // ターゲットも非表示にする
+                this.enabled = false;
 
-                // GameManagerに正解を報告
+                target.gameObject.SetActive(false); // ターゲットを非表示にする
+
+                transform.SetParent(target.transform.parent); // 所属をPuzzleBoardに変更
+
                 GameManager.instance.PiecePlacedCorrectly();
-                Debug.Log("正解！ " + shapeType);
             }
             else
             {
-                // 形が違う穴だったので不正解
+                // 不正解（形が違う）
                 rectTransform.anchoredPosition = initialPosition;
             }
         }
         else
         {
-            // ターゲット以外の場所だったので不正解
+            // 不正解（ターゲット以外）
             rectTransform.anchoredPosition = initialPosition;
         }
     }
