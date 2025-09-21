@@ -28,8 +28,8 @@ public class GameManager : MonoBehaviour
     private float currentTime;
     private int score;
     private int stageCount = 0;
-    private int pieceCount = 3;
-    private int maxPieceCount = 6;
+    private int pieceCount = 5;
+    private int maxPieceCount = 8;
     private List<GameObject> unlockedShapeTargetPrefabs = new List<GameObject>();
     private List<GameObject> currentSpawnedTargets = new List<GameObject>();
     private List<GameObject> currentSpawnedPieces = new List<GameObject>();
@@ -215,6 +215,7 @@ public class GameManager : MonoBehaviour
 
         if (placedPieces >= currentSpawnedTargets.Count)
         {
+            AudioManager.instance.PlaySE(AudioManager.instance.stageClear);
             score += 200;
             stageCount++;
             Debug.Log("ステージ " + stageCount + " クリア！");

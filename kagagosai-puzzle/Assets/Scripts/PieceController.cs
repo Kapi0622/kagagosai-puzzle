@@ -21,6 +21,8 @@ public class PieceController : MonoBehaviour, IPointerDownHandler, IDragHandler,
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        AudioManager.instance.PlaySE(AudioManager.instance.grabPiece);
+        
         initialPosition = rectTransform.anchoredPosition;
         initialParent = transform.parent;
         transform.SetParent(canvas.transform, true);
@@ -49,6 +51,8 @@ public class PieceController : MonoBehaviour, IPointerDownHandler, IDragHandler,
             if (target != null && target.shapeType == this.shapeType)
             {
                 // 正解！
+                AudioManager.instance.PlaySE(AudioManager.instance.placePiece);
+                
                 rectTransform.position = target.transform.position;
                 this.enabled = false;
 
