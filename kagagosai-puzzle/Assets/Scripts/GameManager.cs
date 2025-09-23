@@ -1,158 +1,194 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement; // シーン管理に必要
+using TMPro;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
 
-    [Header("ゲーム設定")]
-    public float timeLimit = 180f;
+    // ゲームの状態を定義
+    private enum GameState { HowToPlay, Countdown, Playing, GameOver }
+    private GameState currentState;
 
     [Header("UI関連")]
+    public Canvas mainCanvas; // メインキャンバス
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI scoreText;
+    public GameObject howToPlayPanel;
+    public TextMeshProUGUI countdownText;
+    public GameObject gameOverText;
+
+    [Header("ゲーム設定")]
+    public float timeLimit = 180f;
 
     [Header("パズル自動生成 設定")]
     public Transform puzzleBoardCenter;
     public float puzzleBoardRadius;
-    public List<GameObject> allShapeTargetPrefabs; // 全種類のターゲットPrefab（アンロック順）
+    public List<GameObject> allShapeTargetPrefabs;
     public GameObject piecePrefab;
     public Transform piecePanel;
 
-    // --- プライベート変数 ---
     private float currentTime;
     private int score;
     private int stageCount = 0;
     private int pieceCount = 5;
-    private int maxPieceCount = 8;
+    private int maxPieceCount = 10;
     private List<GameObject> unlockedShapeTargetPrefabs = new List<GameObject>();
     private List<GameObject> currentSpawnedTargets = new List<GameObject>();
     private List<GameObject> currentSpawnedPieces = new List<GameObject>();
     private int placedPieces;
-    
-    // 加賀五彩の色リスト（ウェブカラーコードで指定）
     private List<Color> kagaGosaiColors = new List<Color>();
 
     void Awake()
     {
         if (instance == null) { instance = this; }
         else { Destroy(gameObject); }
-
-        // 色リストを初期化
-        // ColorUtility.TryParseHtmlString("#FF0000", out Color newColor) のようにして色を変換
-        ColorUtility.TryParseHtmlString("#4B0082", out Color ai);      // 藍 (インディゴ)
-        ColorUtility.TryParseHtmlString("#DC143C", out Color enji);     // 臙脂 (クリムゾン)
-        ColorUtility.TryParseHtmlString("#228B22", out Color kusa);     // 草 (フォレストグリーン)
-        ColorUtility.TryParseHtmlString("#DAA520", out Color odo);      // 黄土 (ゴールデンロッド)
-        ColorUtility.TryParseHtmlString("#483D8B", out Color kodaimurasaki); // 古代紫 (ダークスレートブルー)
-
-        kagaGosaiColors.Add(ai);
-        kagaGosaiColors.Add(enji);
-        kagaGosaiColors.Add(kusa);
-        kagaGosaiColors.Add(odo);
-        kagaGosaiColors.Add(kodaimurasaki);
+        
+        ColorUtility.TryParseHtmlString("#4B0082", out Color ai);
+        ColorUtility.TryParseHtmlString("#DC143C", out Color enji);
+        ColorUtility.TryParseHtmlString("#228B22", out Color kusa);
+        ColorUtility.TryParseHtmlString("#DAA520", out Color odo);
+        ColorUtility.TryParseHtmlString("#483D8B", out Color kodaimurasaki);
+        kagaGosaiColors.Add(ai); kagaGosaiColors.Add(enji); kagaGosaiColors.Add(kusa); kagaGosaiColors.Add(odo); kagaGosaiColors.Add(kodaimurasaki);
     }
 
     void Start()
     {
-        Debug.Log("GameManager Start: ゲームを開始します。");
-        StartNewGame();
+        currentState = GameState.HowToPlay;
+        howToPlayPanel.SetActive(true);
+        countdownText.gameObject.SetActive(false);
+        gameOverText.SetActive(false);
+        
+        timeText.text = "時間 : " + Mathf.Ceil(timeLimit).ToString();
+        scoreText.text = "スコア : 0";
     }
 
     void Update()
     {
-        if (currentTime > 0)
+        if (currentState == GameState.Playing)
         {
-            currentTime -= Time.deltaTime;
-            UpdateTimerUI();
-        }
-        else
-        {
-            // 時間切れの処理
-            currentTime = 0;
-            UpdateTimerUI();
-
-            // "FinalScore"という名前でスコアを保存
-            PlayerPrefs.SetInt("FinalScore", score);
-            PlayerPrefs.Save(); // 念のため保存を確定
-
-            // リザルト画面へ
-            SceneManager.LoadScene("ResultScene");
+            if (currentTime > 0)
+            {
+                currentTime -= Time.deltaTime;
+                UpdateTimerUI();
+            }
+            else
+            {
+                // 時間切れになった瞬間に一度だけ呼ばれるようにする
+                if(currentState != GameState.GameOver)
+                {
+                    StartCoroutine(GameOverCoroutine());
+                }
+            }
         }
     }
 
-    void StartNewGame()
+    // カウントダウンを行うコルーチン
+    private IEnumerator CountdownCoroutine()
     {
+        currentState = GameState.Countdown;
+        countdownText.gameObject.SetActive(true);
+
+        countdownText.text = "3";
+        AudioManager.instance.PlaySE(AudioManager.instance.countdownTick); // SE再生
+        yield return new WaitForSeconds(1f);
+
+        countdownText.text = "2";
+        AudioManager.instance.PlaySE(AudioManager.instance.countdownTick); // SE再生
+        yield return new WaitForSeconds(1f);
+
+        countdownText.text = "1";
+        AudioManager.instance.PlaySE(AudioManager.instance.countdownTick); // SE再生
+        yield return new WaitForSeconds(1f);
+
+        countdownText.text = "スタート！";
+        AudioManager.instance.PlaySE(AudioManager.instance.countdownStart); // 別のSE再生
+        yield return new WaitForSeconds(0.5f);
+
+        countdownText.gameObject.SetActive(false);
+        StartGameplay();
+    }
+    
+    // ゲーム終了時の演出を行うコルーチン
+    private IEnumerator GameOverCoroutine()
+    {
+        currentState = GameState.GameOver;
+        currentTime = 0;
+        UpdateTimerUI();
+
+        // 「おわり」の表示とSE再生
+        if (gameOverText != null) gameOverText.SetActive(true);
+        AudioManager.instance.PlaySE(AudioManager.instance.gameOver);
+
+        // 2秒間待ってからリザルト画面へ
+        yield return new WaitForSeconds(2f);
+
+        PlayerPrefs.SetInt("FinalScore", score);
+        PlayerPrefs.Save();
+        SceneManager.LoadScene("ResultScene");
+    }
+
+    public void CloseHowToPlay()
+    {
+        howToPlayPanel.SetActive(false);
+        StartCoroutine(CountdownCoroutine());
+    }
+    
+    private void StartGameplay()
+    {
+        currentState = GameState.Playing;
         score = 0;
         stageCount = 0;
         currentTime = timeLimit;
-        pieceCount = 3;
-
-        unlockedShapeTargetPrefabs.Clear();
-        for (int i = 0; i < 3; i++)
-        {
-            if (i < allShapeTargetPrefabs.Count)
-            {
-                unlockedShapeTargetPrefabs.Add(allShapeTargetPrefabs[i]);
-            }
-        }
-
+        pieceCount = 5;
+        for (int i = 0; i < 5; i++) { if (i < allShapeTargetPrefabs.Count) { unlockedShapeTargetPrefabs.Add(allShapeTargetPrefabs[i]); } }
         UpdateScoreUI();
         GenerateNewPuzzle();
     }
 
     void GenerateNewPuzzle()
     {
-        Debug.Log("GenerateNewPuzzle: 新しいパズルを生成開始します。ステージ: " + (stageCount + 1));
-
-        // 1. 前のステージのオブジェクトを削除
         foreach (var obj in currentSpawnedTargets) { Destroy(obj); }
-        foreach (var obj in currentSpawnedPieces) { Destroy(obj); } // ピースも削除
+        foreach (var obj in currentSpawnedPieces) { Destroy(obj); }
         currentSpawnedTargets.Clear();
-        currentSpawnedPieces.Clear(); // ピースのリストもクリア
+        currentSpawnedPieces.Clear();
         placedPieces = 0;
 
-        // 2. 難易度チェックと更新
         if (stageCount > 0)
         {
-            if (stageCount % 2 == 0)
-            {
-                int nextUnlockIndex = unlockedShapeTargetPrefabs.Count;
-                if (nextUnlockIndex < allShapeTargetPrefabs.Count)
-                {
-                    unlockedShapeTargetPrefabs.Add(allShapeTargetPrefabs[nextUnlockIndex]);
-                }
-            }
-            if (stageCount % 5 == 0 && pieceCount < maxPieceCount)
+            
+            // 2ステージごとにピースの数を増やす
+            if (stageCount % 2 == 0 && pieceCount < maxPieceCount)
             {
                 pieceCount++;
             }
         }
 
-        // 3. 今回のステージで使う形を選ぶ
         List<GameObject> shapesForThisStage = new List<GameObject>();
-        List<GameObject> tempUnlockedList = new List<GameObject>(unlockedShapeTargetPrefabs);
+        List<GameObject> tempAvailableList = new List<GameObject>(allShapeTargetPrefabs);
         for (int i = 0; i < pieceCount; i++)
         {
-            if (tempUnlockedList.Count == 0) break;
-            int randomIndex = Random.Range(0, tempUnlockedList.Count);
-            shapesForThisStage.Add(tempUnlockedList[randomIndex]);
-            tempUnlockedList.RemoveAt(randomIndex);
+            if (tempAvailableList.Count == 0) break;
+            int randomIndex = Random.Range(0, tempAvailableList.Count);
+            shapesForThisStage.Add(tempAvailableList[randomIndex]);
+            tempAvailableList.RemoveAt(randomIndex);
         }
-
-        // 4. ターゲットをランダムに配置（手動距離計算バージョン）
+        // --- ▼▼▼ ここが固定サイズ用の配置ロジック ▼▼▼ ---
         List<Vector2> placedPositions = new List<Vector2>();
+        
+        // ピースの基本サイズをpiecePrefabから一度だけ取得
+        RectTransform pieceRect = piecePrefab.GetComponent<RectTransform>();
+        float pieceRadius = pieceRect.sizeDelta.x / 2f;
+
+        // Canvasの拡大率を考慮した実際の半径で計算
+        float pieceScaledRadius = pieceRadius * mainCanvas.scaleFactor;
+        float placeableScaledRadius = (puzzleBoardRadius * mainCanvas.scaleFactor) - pieceScaledRadius;
+
         foreach (GameObject targetPrefab in shapesForThisStage)
         {
-            RectTransform pieceRect = targetPrefab.GetComponent<RectTransform>();
-            float pieceRadius = pieceRect.sizeDelta.x / 2;
-            float placeableRadius = puzzleBoardRadius - pieceRadius;
-
             Vector2 spawnPosition = Vector2.zero;
             bool positionFound = false;
             int attempts = 0;
@@ -160,13 +196,14 @@ public class GameManager : MonoBehaviour
             while (!positionFound && attempts < 200)
             {
                 Vector2 randomDirection = Random.insideUnitCircle.normalized;
-                float randomDistance = Random.Range(0, placeableRadius);
+                float randomDistance = Random.Range(0, placeableScaledRadius);
                 spawnPosition = (Vector2)puzzleBoardCenter.position + (randomDirection * randomDistance);
-
+                
                 bool overlaps = false;
                 foreach (Vector2 pos in placedPositions)
                 {
-                    if (Vector2.Distance(spawnPosition, pos) < (pieceRadius * 2))
+                    // ピースの実際の大きさ（拡大率考慮済み）で距離を比較
+                    if (Vector2.Distance(spawnPosition, pos) < (pieceScaledRadius * 2))
                     {
                         overlaps = true;
                         break;
@@ -187,8 +224,8 @@ public class GameManager : MonoBehaviour
                 placedPositions.Add(spawnPosition);
             }
         }
+        // --- ▲▲▲ ここまでが固定サイズ用の配置ロジック ▲▲▲ ---
 
-        // 5. 対応するピースを生成
         foreach (GameObject target in currentSpawnedTargets)
         {
             GameObject newPiece = Instantiate(piecePrefab, piecePanel);
@@ -199,28 +236,26 @@ public class GameManager : MonoBehaviour
 
             Image pieceImage = newPiece.GetComponent<Image>();
             pieceImage.sprite = Resources.Load<Sprite>(targetController.shapeType);
-            
             pieceImage.color = kagaGosaiColors[Random.Range(0, kagaGosaiColors.Count)];
-            
+            // pieceImage.SetNativeSize(); // ← この行がないバージョンです
             currentSpawnedPieces.Add(newPiece);
         }
-        Debug.Log("GenerateNewPuzzle: パズル生成完了。");
     }
 
     public void PiecePlacedCorrectly()
     {
         score += 100;
         placedPieces++;
-        UpdateScoreUI();
 
         if (placedPieces >= currentSpawnedTargets.Count)
         {
             AudioManager.instance.PlaySE(AudioManager.instance.stageClear);
-            score += 200;
+            score += 500;
             stageCount++;
-            Debug.Log("ステージ " + stageCount + " クリア！");
             GenerateNewPuzzle();
         }
+        
+        UpdateScoreUI();
     }
 
     void UpdateTimerUI()

@@ -1,90 +1,104 @@
 using UnityEngine;
-using UnityEngine.SceneManagement; // シーン管理に必要
+using UnityEngine.SceneManagement;
 
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager instance;
 
+    // ... (AudioClipの変数は変更なし) ...
     [Header("BGM")]
-    public AudioClip titleBGM;       // タイトル画面のBGM
-    public AudioClip gameBGM;        // ゲーム画面のBGM
-    public AudioClip resultBGM;      // リザルト画面のBGM
-
+    public AudioClip titleBGM, gameBGM, resultBGM;
     [Header("効果音 (SE)")]
-    public AudioClip grabPiece;      // ピースを掴んだ音
-    public AudioClip placePiece;     // ピースがはまった音
-    public AudioClip stageClear;     // ステージクリア音
-    public AudioClip buttonClick;    // ボタンクリック音
+    public AudioClip grabPiece, placePiece, stageClear, buttonClick;
+    public AudioClip countdownTick;  
+    public AudioClip countdownStart; 
+    public AudioClip gameOver;      
 
     private AudioSource bgmSource;
     private AudioSource seSource;
 
     void Awake()
     {
+        Debug.Log("--- Awake()が呼ばれました --- 名前: " + gameObject.name + " ID: " + GetInstanceID());
         if (instance == null)
         {
             instance = this;
             DontDestroyOnLoad(gameObject);
+            Debug.Log("AudioManagerのインスタンスを生成しました。ID: " + GetInstanceID());
         }
         else
         {
+            Debug.LogWarning("AudioManagerのインスタンスは既に存在します。新しいインスタンスを破棄します。 破棄ID: " + GetInstanceID());
             Destroy(gameObject);
-            return; // ここで処理を中断
         }
-
-        // BGM用とSE用にAudioSourceを2つ用意する
-        bgmSource = gameObject.AddComponent<AudioSource>();
-        seSource = gameObject.AddComponent<AudioSource>();
-
-        bgmSource.loop = true; // BGMはループ再生する
     }
 
-    private void OnEnable()
-    {
-        // シーンがロードされた時に呼ばれるイベントに関数を登録
-        SceneManager.sceneLoaded += OnSceneLoaded;
-    }
+    private void OnEnable() { SceneManager.sceneLoaded += OnSceneLoaded; }
+    private void OnDisable() { SceneManager.sceneLoaded -= OnSceneLoaded; }
 
-    private void OnDisable()
-    {
-        // オブジェクトが破棄される時にイベントから関数を解除
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-
-    // シーンがロードされた時に自動で呼ばれる関数
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // シーン名に応じて再生するBGMを切り替える
-        if (scene.name == "TitleScene")
-        {
-            PlayBGM(titleBGM);
-        }
-        else if (scene.name == "GameScene")
-        {
-            PlayBGM(gameBGM);
-        }
-        else if (scene.name == "ResultScene")
-        {
-            PlayBGM(resultBGM);
-        }
+        Debug.Log(scene.name + " がロードされました。BGMを再生します。");
+        if (scene.name == "TitleScene") PlayBGM(titleBGM);
+        else if (scene.name == "GameScene") PlayBGM(gameBGM);
+        else if (scene.name == "ResultScene") PlayBGM(resultBGM);
+        else if (scene.name == "CreateScene") PlayBGM(titleBGM); 
     }
 
-    // BGMを再生する関数
     public void PlayBGM(AudioClip clip)
     {
-        if (clip != null && bgmSource.clip != clip) // 同じBGMが既に流れていなければ
+        if (bgmSource == null)
+        {
+            Debug.Log("bgmSourceがnullのため、新しく作成します。");
+            bgmSource = gameObject.AddComponent<AudioSource>();
+            bgmSource.loop = true;
+        }
+        
+        if (clip != null && bgmSource.clip != clip)
         {
             bgmSource.clip = clip;
             bgmSource.Play();
         }
     }
 
-    // 効果音を再生する関数
     public void PlaySE(AudioClip clip)
     {
+        Debug.Log("--- PlaySEが呼ばれました ---");
+        if (seSource == null)
+        {
+            Debug.Log("seSourceがnullのため、新しく作成します。");
+            seSource = gameObject.AddComponent<AudioSource>();
+        }
+        else
+        {
+            Debug.Log("seSourceは既に存在します。");
+        }
+
         if (clip != null)
         {
+            Debug.Log("SEを再生します: " + clip.name);
             seSource.PlayOneShot(clip);
+        }
+        else
+        {
+            Debug.LogWarning("再生するSEクリップが指定されていません。");
+        }
+    }
+    
+    // BGMの音量を設定・保存する
+    public void SetBgmVolume(float volume)
+    {
+        bgmSource.volume = volume;
+    }
+
+// SEの音量を設定・保存する
+    public void SetSeVolume(float volume)
+    {
+        seSource.volume = volume;
+    
+        if(Time.timeSinceLevelLoad > 0.1f)
+        {
+            PlaySE(buttonClick);
         }
     }
 }

@@ -15,4 +15,9 @@ public class SceneController : MonoBehaviour
     {
         SceneManager.LoadScene("TitleScene");
     }
+    
+    public void GoToCreateScene()
+    {
+        SceneManager.LoadScene("CreateScene");
+    }
 }
